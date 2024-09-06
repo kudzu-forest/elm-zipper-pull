@@ -6,6 +6,4 @@
  This idea (record-of-functions as an interface) is from [edkelly303/elm-any-type-collections](https://package.elm-lang.org/packages/edkelly303/elm-any-type-collections/1.0.0/).
 
 ## Example
-Living example is given in [Ellie](https://ellie-app.com/s8dQrMKJhH8a1).
-
-
+Living example in Ellie is given in [here](https://ellie-app.com/s9M3tbS6ws9a1) and [here](https://ellie-app.com/s9MWFKDFsgNa1).
