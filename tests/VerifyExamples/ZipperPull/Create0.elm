@@ -15,15 +15,15 @@ type alias Model =
     , latterVolumes : List (String, Int)
     }
 
-pull : ZipperPull (String, Int) Model output
+pull : Interface (String, Int) Model output
 pull =
     create
-        { getForeList = .latterVolumes
-        , getRearList = .previousVolumes
-        , getCurrent = \m -> (m.title, m.readCount)
-        , setForeList = \l m -> {m| latterVolumes = l}
-        , setRearList = \f m -> {m| previousVolumes = f}
-        , setCurrent = \(t,c) m -> {m| title=t, readCount=c}
+        { getRightList = .latterVolumes
+        , getLeftList = .previousVolumes
+        , getFocus = \m -> (m.title, m.readCount)
+        , setRightList = \l m -> {m| latterVolumes = l}
+        , setLeftList = \f m -> {m| previousVolumes = f}
+        , setFocus = \(t,c) m -> {m| title=t, readCount=c}
         }
 model : Model
 model =
@@ -44,12 +44,12 @@ model =
 
 spec0 : Test.Test
 spec0 =
-    Test.test "#create: \n\n    model\n        |> pull.position\n    --> 0" <|
+    Test.test "#create: \n\n    model\n        |> pull.indexFromLeft\n    --> 0" <|
         \() ->
             Expect.equal
                 (
                 model
-                    |> pull.position
+                    |> pull.indexFromLeft
                 )
                 (
                 0

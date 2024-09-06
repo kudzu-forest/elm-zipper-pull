@@ -15,15 +15,15 @@ type alias Model =
     , latterVolumes : List (String, Int)
     }
 
-pull : ZipperPull (String, Int) Model output
+pull : Interface (String, Int) Model output
 pull =
     create
-        { getForeList = .latterVolumes
-        , getRearList = .previousVolumes
-        , getCurrent = \m -> (m.title, m.readCount)
-        , setForeList = \l m -> {m| latterVolumes = l}
-        , setRearList = \f m -> {m| previousVolumes = f}
-        , setCurrent = \(t,c) m -> {m| title=t, readCount=c}
+        { getRightList = .latterVolumes
+        , getLeftList = .previousVolumes
+        , getFocus = \m -> (m.title, m.readCount)
+        , setRightList = \l m -> {m| latterVolumes = l}
+        , setLeftList = \f m -> {m| previousVolumes = f}
+        , setFocus = \(t,c) m -> {m| title=t, readCount=c}
         }
 model : Model
 model =
@@ -44,13 +44,13 @@ model =
 
 spec7 : Test.Test
 spec7 =
-    Test.test "#create: \n\n    model\n      |> pull.last\n      |> pull.prev\n    --> { title = \"Half-Blood Prince\" , readCount = 1 , previousVolumes = [ (\"Order of the Phoenix\", 2) , (\"Goblet of Fire\", 3) , (\"Prisoner of Azkaban\", 2) , (\"Chamber of Secrets\", 2) , (\"Philosopher's Stone\", 3) ] , latterVolumes = [ (\"Deathly Hallows\", 1) ] }" <|
+    Test.test "#create: \n\n    model\n      |> pull.focusRightEnd\n      |> pull.focusLeft\n    --> { title = \"Half-Blood Prince\" , readCount = 1 , previousVolumes = [ (\"Order of the Phoenix\", 2) , (\"Goblet of Fire\", 3) , (\"Prisoner of Azkaban\", 2) , (\"Chamber of Secrets\", 2) , (\"Philosopher's Stone\", 3) ] , latterVolumes = [ (\"Deathly Hallows\", 1) ] }" <|
         \() ->
             Expect.equal
                 (
                 model
-                  |> pull.last
-                  |> pull.prev
+                  |> pull.focusRightEnd
+                  |> pull.focusLeft
                 )
                 (
                 { title = "Half-Blood Prince" , readCount = 1 , previousVolumes = [ ("Order of the Phoenix", 2) , ("Goblet of Fire", 3) , ("Prisoner of Azkaban", 2) , ("Chamber of Secrets", 2) , ("Philosopher's Stone", 3) ] , latterVolumes = [ ("Deathly Hallows", 1) ] }

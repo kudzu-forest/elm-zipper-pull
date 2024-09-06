@@ -1,40 +1,52 @@
 module ZipperPull exposing
-    ( ZipperPull
+    ( Interface
     , create
     )
 
-{-| This library makes it easier to attach interface as [linear zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)#Example:_Bidirectional_list_traversal "list zipper") on arbitrary data types including ordinary records. Actually, no data correction type is defined in this package: the only functions exposed here is `create`, which returns a record containing handler functions, not data itself, to treat your data like list zipper. So it is named ZipperPull, not Zipper itself.
+{-|
 
 
 # INTERFACE TYPE
 
-@docs ZipperPull
+@docs Interface
 
 
 # CREATION
 
 @docs create
 
+
+# Too few functions?
+
+The interface does not have `updateFocus : (stock -> stock) -> model -> model`, `insertLeft : stock -> model -> model`, `getLeftList : model -> List stock` etc.
+This is because these operation can be done simpler way with ordinary record operations. It may be confusing to have more than one way of doing one thing.
+If you have any inconvinience, please tell me or make a pull request.
+
 -}
 
 
-{-| A record containing functions for manipulating specified data type as list zipper.
+{-| A record containing functions for manipulating specified data type as list zipper. The type parameter `output` should not be specifide.
 -}
-type alias ZipperPull stock model output =
-    { next : model -> model
-    , prev : model -> model
-    , first : model -> model
-    , last : model -> model
-    , isFirst : model -> Bool
-    , isLast : model -> Bool
-    , foldFromFirst : (stock -> output -> output) -> output -> model -> output
-    , foldFromLast : (stock -> output -> output) -> output -> model -> output
-    , position : model -> Int
-    , toList : model -> List stock
+type alias Interface stock model output =
+    { focusLeft : model -> model
+    , focusRight : model -> model
+    , focusLeftEnd : model -> model
+    , focusRightEnd : model -> model
+    , isLeftEnd : model -> Bool
+    , isRightEnd : model -> Bool
+    , indexFromLeft : model -> Int
+    , indexFromRight : model -> Int
+    , map : (stock -> stock) -> model -> model
+    , toLeftHeadList : model -> List stock
+    , toRightHeadList : model -> List stock
+    , foldl : (stock -> output -> output) -> output -> model -> output
+    , foldr : (stock -> output -> output) -> output -> model -> output
+    , mapToLeftHeadList : (stock -> output) -> model -> List output
+    , mapToRightHeadList : (stock -> output) -> model -> List output
     }
 
 
-{-| The way you can attach list zipper interface on ordinary record (or any other data type).
+{-| The way you can attach list zipper interface on ordinary record.
 
     type alias Model =
         { title : String
@@ -58,32 +70,32 @@ type alias ZipperPull stock model output =
             ]
         }
 
-    pull : ZipperPull (String, Int) Model output
+    pull : Interface (String, Int) Model output
     pull =
         create
-            { getForeList = .latterVolumes
-            , getRearList = .previousVolumes
-            , getCurrent = \m -> (m.title, m.readCount)
-            , setForeList = \l m -> {m| latterVolumes = l}
-            , setRearList = \f m -> {m| previousVolumes = f}
-            , setCurrent = \(t,c) m -> {m| title=t, readCount=c}
+            { getRightList = .latterVolumes
+            , getLeftList = .previousVolumes
+            , getFocus = \m -> (m.title, m.readCount)
+            , setRightList = \l m -> {m| latterVolumes = l}
+            , setLeftList = \f m -> {m| previousVolumes = f}
+            , setFocus = \(t,c) m -> {m| title=t, readCount=c}
             }
 
     model
-      |> pull.last
-      |> pull.prev
+      |> pull.focusRightEnd
+      |> pull.focusLeft
       --> { title = "Half-Blood Prince" , readCount = 1 , previousVolumes = [ ("Order of the Phoenix", 2) , ("Goblet of Fire", 3) , ("Prisoner of Azkaban", 2) , ("Chamber of Secrets", 2) , ("Philosopher's Stone", 3) ] , latterVolumes = [ ("Deathly Hallows", 1) ] }
 
-    model |> pull.isFirst --> True
+    model |> pull.isLeftEnd --> True
 
-    model |> pull.next |> pull.isFirst --> False
+    model |> pull.focusRight |> pull.isLeftEnd --> False
 
-    model |> pull.isLast --> False
+    model |> pull.isRightEnd --> False
 
-    model |> pull.last |> pull.isLast --> True
+    model |> pull.focusRightEnd |> pull.isRightEnd --> True
 
     model
-        |> pull.foldFromFirst
+        |> pull.foldl
             (\(title, count) str ->
                 str
                 ++ "I have read \""
@@ -96,153 +108,195 @@ type alias ZipperPull stock model output =
             --> "I have read \"Philosopher's Stone\" 3 times. " ++ "I have read \"Chamber of Secrets\" 2 times. " ++ "I have read \"Prisoner of Azkaban\" 2 times. " ++ "I have read \"Goblet of Fire\" 3 times. " ++ "I have read \"Order of the Phoenix\" 2 times. " ++ "I have read \"Half-Blood Prince\" 1 times. " ++ "I have read \"Deathly Hallows\" 1 times. "
 
     model
-        |> pull.foldFromLast
+        |> pull.foldr
             (\(_, count) sofar -> sofar + count)
             0
             --> 14
 
     model
-        |> pull.position
+        |> pull.indexFromLeft
         --> 0
 
 -}
 create :
-    { getForeList : model -> List a
-    , getRearList : model -> List a
-    , getCurrent : model -> a
-    , setForeList : List a -> model -> model
-    , setRearList : List a -> model -> model
-    , setCurrent : a -> model -> model
+    { getRightList : model -> List a
+    , getLeftList : model -> List a
+    , getFocus : model -> a
+    , setRightList : List a -> model -> model
+    , setLeftList : List a -> model -> model
+    , setFocus : a -> model -> model
     }
-    -> ZipperPull a model b
-create { getForeList, getRearList, getCurrent, setForeList, setRearList, setCurrent } =
+    -> Interface a model b
+create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocus } =
     let
-        next =
+        focusRight =
             \model ->
-                case getForeList model of
+                case getRightList model of
                     [] ->
                         model
 
                     left :: rest ->
                         let
-                            newForeList =
+                            newRightList =
                                 rest
 
-                            newCurrent =
+                            newFocus =
                                 left
 
-                            newRearList =
-                                getCurrent model :: getRearList model
+                            newLeftList =
+                                getFocus model :: getLeftList model
                         in
                         model
-                            |> setForeList newForeList
-                            |> setCurrent newCurrent
-                            |> setRearList newRearList
+                            |> setRightList newRightList
+                            |> setFocus newFocus
+                            |> setLeftList newLeftList
 
-        prev =
+        focusLeft =
             \model ->
-                case getRearList model of
+                case getLeftList model of
                     [] ->
                         model
 
                     right :: rest ->
                         let
-                            newForeList =
-                                getCurrent model :: getForeList model
+                            newRightList =
+                                getFocus model :: getRightList model
 
-                            newCurrent =
+                            newFocus =
                                 right
 
-                            newRearList =
+                            newLeftList =
                                 rest
                         in
                         model
-                            |> setForeList newForeList
-                            |> setCurrent newCurrent
-                            |> setRearList newRearList
+                            |> setRightList newRightList
+                            |> setFocus newFocus
+                            |> setLeftList newLeftList
 
-        first =
+        focusRightEnd =
             \model ->
                 let
                     whole =
                         List.foldl
                             (\crr acc -> crr :: acc)
-                            (getCurrent model :: getForeList model)
-                            (getRearList model)
-                in
-                case whole of
-                    f :: rest ->
-                        model
-                            |> setForeList rest
-                            |> setCurrent f
-                            |> setRearList []
-
-                    [] ->
-                        model
-
-        last =
-            \model ->
-                let
-                    whole =
-                        List.foldl
-                            (\crr acc -> crr :: acc)
-                            (getCurrent model :: getRearList model)
-                            (getForeList model)
+                            (getFocus model :: getLeftList model)
+                            (getRightList model)
                 in
                 case whole of
                     l :: rest ->
                         model
-                            |> setForeList []
-                            |> setCurrent l
-                            |> setRearList rest
+                            |> setRightList []
+                            |> setFocus l
+                            |> setLeftList rest
 
                     [] ->
                         model
 
-        isFirst =
-            \model -> List.isEmpty (getRearList model)
+        focusLeftEnd =
+            \model ->
+                let
+                    whole =
+                        List.foldl
+                            (\crr acc -> crr :: acc)
+                            (getFocus model :: getRightList model)
+                            (getLeftList model)
+                in
+                case whole of
+                    f :: rest ->
+                        model
+                            |> setRightList rest
+                            |> setFocus f
+                            |> setLeftList []
 
-        isLast =
-            \model -> List.isEmpty (getForeList model)
+                    [] ->
+                        model
 
-        foldFromFirst =
+        isRightEnd =
+            \model -> List.isEmpty (getRightList model)
+
+        isLeftEnd =
+            \model -> List.isEmpty (getLeftList model)
+
+        foldl =
             \f initial model ->
                 let
                     m =
-                        first model
+                        focusLeftEnd model
                 in
-                (getCurrent m :: getForeList m)
+                (getFocus m :: getRightList m)
                     |> List.foldl f initial
 
-        foldFromLast =
+        foldr =
             \f initial model ->
                 let
                     m =
-                        last model
+                        focusRightEnd model
                 in
-                (getCurrent m :: getRearList m)
+                (getFocus m :: getLeftList m)
                     |> List.foldl f initial
 
-        position =
+        indexFromLeft =
             \model ->
-                List.length (getRearList model)
+                List.length (getLeftList model)
 
-        toList =
+        indexFromRight =
+            \model ->
+                List.length (getRightList model)
+
+        map =
+            \f model ->
+                model
+                    |> setFocus (f (getFocus model))
+                    |> setLeftList (List.map f (getLeftList model))
+                    |> setRightList (List.map f (getRightList model))
+
+        toLeftHeadList =
             \model ->
                 let
-                    f =
-                        first model
+                    l =
+                        focusLeftEnd model
                 in
-                getCurrent f :: getForeList f
+                getFocus l :: getRightList l
+
+        toRightHeadList =
+            \model ->
+                let
+                    r =
+                        focusRightEnd model
+                in
+                getFocus r :: getLeftList r
+
+        mapToLeftHeadList =
+            \f model ->
+                let
+                    l =
+                        focusLeftEnd model
+                in
+                List.map f
+                    (getFocus l :: getRightList l)
+
+        mapToRightHeadList =
+            \f model ->
+                let
+                    r =
+                        focusRightEnd model
+                in
+                List.map f
+                    (getFocus r :: getLeftList r)
     in
-    { next = next
-    , prev = prev
-    , first = first
-    , last = last
-    , isFirst = isFirst
-    , isLast = isLast
-    , foldFromFirst = foldFromFirst
-    , foldFromLast = foldFromLast
-    , position = position
-    , toList = toList
+    { focusRight = focusRight
+    , focusLeft = focusLeft
+    , focusLeftEnd = focusLeftEnd
+    , focusRightEnd = focusRightEnd
+    , isLeftEnd = isLeftEnd
+    , isRightEnd = isRightEnd
+    , indexFromLeft = indexFromLeft
+    , indexFromRight = indexFromRight
+    , map = map
+    , toLeftHeadList = toLeftHeadList
+    , toRightHeadList = toRightHeadList
+    , foldl = foldl
+    , foldr = foldr
+    , mapToLeftHeadList = mapToLeftHeadList
+    , mapToRightHeadList = mapToRightHeadList
     }

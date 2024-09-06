@@ -15,15 +15,15 @@ type alias Model =
     , latterVolumes : List (String, Int)
     }
 
-pull : ZipperPull (String, Int) Model output
+pull : Interface (String, Int) Model output
 pull =
     create
-        { getForeList = .latterVolumes
-        , getRearList = .previousVolumes
-        , getCurrent = \m -> (m.title, m.readCount)
-        , setForeList = \l m -> {m| latterVolumes = l}
-        , setRearList = \f m -> {m| previousVolumes = f}
-        , setCurrent = \(t,c) m -> {m| title=t, readCount=c}
+        { getRightList = .latterVolumes
+        , getLeftList = .previousVolumes
+        , getFocus = \m -> (m.title, m.readCount)
+        , setRightList = \l m -> {m| latterVolumes = l}
+        , setLeftList = \f m -> {m| previousVolumes = f}
+        , setFocus = \(t,c) m -> {m| title=t, readCount=c}
         }
 model : Model
 model =
@@ -44,12 +44,12 @@ model =
 
 spec2 : Test.Test
 spec2 =
-    Test.test "#create: \n\n    model\n        |> pull.foldFromFirst\n            (\\(title, count) str ->\n                str\n                ++ \"I have read \\\"\"\n                ++ title\n                ++ \"\\\" \"\n                ++ String.fromInt count\n                ++ \" times. \"\n            )\n            \"\"\n    --> \"I have read \\\"Philosopher's Stone\\\" 3 times. \" ++ \"I have read \\\"Chamber of Secrets\\\" 2 times. \" ++ \"I have read \\\"Prisoner of Azkaban\\\" 2 times. \" ++ \"I have read \\\"Goblet of Fire\\\" 3 times. \" ++ \"I have read \\\"Order of the Phoenix\\\" 2 times. \" ++ \"I have read \\\"Half-Blood Prince\\\" 1 times. \" ++ \"I have read \\\"Deathly Hallows\\\" 1 times. \"" <|
+    Test.test "#create: \n\n    model\n        |> pull.foldl\n            (\\(title, count) str ->\n                str\n                ++ \"I have read \\\"\"\n                ++ title\n                ++ \"\\\" \"\n                ++ String.fromInt count\n                ++ \" times. \"\n            )\n            \"\"\n    --> \"I have read \\\"Philosopher's Stone\\\" 3 times. \" ++ \"I have read \\\"Chamber of Secrets\\\" 2 times. \" ++ \"I have read \\\"Prisoner of Azkaban\\\" 2 times. \" ++ \"I have read \\\"Goblet of Fire\\\" 3 times. \" ++ \"I have read \\\"Order of the Phoenix\\\" 2 times. \" ++ \"I have read \\\"Half-Blood Prince\\\" 1 times. \" ++ \"I have read \\\"Deathly Hallows\\\" 1 times. \"" <|
         \() ->
             Expect.equal
                 (
                 model
-                    |> pull.foldFromFirst
+                    |> pull.foldl
                         (\(title, count) str ->
                             str
                             ++ "I have read \""
