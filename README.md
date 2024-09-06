@@ -1,5 +1,5 @@
 # ZipperPull
-![data structure](https://github.com/kudzu-forest/elm-zipper-pull/blob/master/materials/data_structure.png)
+![data_structure](https://github.com/user-attachments/assets/3976b543-057e-41d9-be5d-385ff62b80d2)
 
  This library makes it easier to attach interface as [linear zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)#Example:_Bidirectional_list_traversal "list zipper") on arbitrary data types including ordinary records.
  Actually, no data correction type is defined in this package: the only functions exposed here is `create`, which returns  not data itself, but a record containing handler functions to treat your data like list zipper. So it is named `ZipperPull`, not Zipper itself.
