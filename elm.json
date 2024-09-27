@@ -3,9 +3,10 @@
     "name": "kudzu-forest/elm-zipper-pull",
     "summary": "treat ordinary record as list zipper.",
     "license": "MIT",
-    "version": "2.0.2",
+    "version": "3.0.0",
     "exposed-modules": [
-        "ZipperPull"
+        "ZipperPull.Stiff",
+        "ZipperPull.Smooth"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
