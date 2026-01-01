@@ -42,6 +42,8 @@ type Err g
 type alias Interface g stock model output =
     { focusLeft : model -> Result (Err g) model
     , focusRight : model -> Result (Err g) model
+    , focusLeftWhile : (stock -> Bool) -> model -> Result (Err g) model
+    , focusRightWhile : (stock -> Bool) -> model -> Result (Err g) model
     , focusLeftEnd : model -> Result (Err g) model
     , focusRightEnd : model -> Result (Err g) model
     , isLeftEnd : model -> Bool
@@ -71,6 +73,24 @@ create :
     -> Interface g a model b
 create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocus } =
     let
+        focusLeft =
+            \model ->
+                case getFocus model of
+                    Err g ->
+                        Err (FailedToGetFocus g)
+
+                    Ok oldFocus ->
+                        case getLeftList model of
+                            [] ->
+                                Err BumpsLeftEnd
+
+                            newFocus :: rest ->
+                                model
+                                    |> setLeftList rest
+                                    |> setFocus newFocus
+                                    |> setRightList (oldFocus :: getRightList model)
+                                    |> Ok
+
         focusRight =
             \model ->
                 case getFocus model of
@@ -89,22 +109,63 @@ create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocu
                                     |> setRightList rest
                                     |> Ok
 
-        focusLeft =
+        focusLeftWhile predicate model =
+            case getFocus model of
+                Err e ->
+                    Err (FailedToGetFocus e)
+
+                Ok oldFocus ->
+                    if predicate oldFocus then
+                        case focusLeft model of
+                            Err e ->
+                                Err e
+
+                            Ok newModel ->
+                                focusLeftWhile predicate newModel
+
+                    else
+                        Ok model
+
+        focusRightWhile predicate model =
+            case getFocus model of
+                Err e ->
+                    Err (FailedToGetFocus e)
+
+                Ok oldFocus ->
+                    if predicate oldFocus then
+                        case focusRight model of
+                            Err e ->
+                                Err e
+
+                            Ok newModel ->
+                                focusRightWhile predicate newModel
+
+                    else
+                        Ok model
+
+        focusLeftEnd =
             \model ->
                 case getFocus model of
                     Err g ->
                         Err (FailedToGetFocus g)
 
                     Ok oldFocus ->
-                        case getLeftList model of
+                        let
+                            whole =
+                                List.foldl
+                                    (\crr acc -> crr :: acc)
+                                    (oldFocus :: getLeftList model)
+                                    (getRightList model)
+                        in
+                        case whole of
                             [] ->
-                                Err BumpsLeftEnd
+                                Ok model
 
-                            newFocus :: rest ->
+                            rightEnd :: tail ->
                                 model
-                                    |> setLeftList rest
-                                    |> setFocus newFocus
-                                    |> setRightList (oldFocus :: getRightList model)
+                                    |> setLeftList tail
+                                    |> setFocus rightEnd
+                                    |> setRightList []
                                     |> Ok
 
         focusRightEnd =
@@ -132,36 +193,11 @@ create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocu
                                     |> setRightList []
                                     |> Ok
 
-        focusLeftEnd =
-            \model ->
-                case getFocus model of
-                    Err g ->
-                        Err (FailedToGetFocus g)
-
-                    Ok oldFocus ->
-                        let
-                            whole =
-                                List.foldl
-                                    (\crr acc -> crr :: acc)
-                                    (oldFocus :: getLeftList model)
-                                    (getRightList model)
-                        in
-                        case whole of
-                            [] ->
-                                Ok model
-
-                            rightEnd :: tail ->
-                                model
-                                    |> setLeftList tail
-                                    |> setFocus rightEnd
-                                    |> setRightList []
-                                    |> Ok
+        isLeftEnd =
+            \model -> List.isEmpty (getLeftList model)
 
         isRightEnd =
             \model -> List.isEmpty (getRightList model)
-
-        isLeftEnd =
-            \model -> List.isEmpty (getLeftList model)
 
         foldl =
             \f initial model ->
@@ -260,6 +296,8 @@ create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocu
     in
     { focusRight = focusRight
     , focusLeft = focusLeft
+    , focusLeftWhile = focusLeftWhile
+    , focusRightWhile = focusRightWhile
     , focusLeftEnd = focusLeftEnd
     , focusRightEnd = focusRightEnd
     , isLeftEnd = isLeftEnd

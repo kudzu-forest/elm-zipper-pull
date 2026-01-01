@@ -30,6 +30,8 @@ If you have any inconvinience, please tell me or make a pull request.
 type alias Interface stock model output =
     { focusLeft : model -> model
     , focusRight : model -> model
+    , focusLeftWhile : (stock -> Bool) -> model -> model
+    , focusRightWhile : (stock -> Bool) -> model -> model
     , focusLeftEnd : model -> model
     , focusRightEnd : model -> model
     , isLeftEnd : model -> Bool
@@ -129,6 +131,28 @@ create :
     -> Interface a model b
 create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocus } =
     let
+        focusLeft =
+            \model ->
+                case getLeftList model of
+                    [] ->
+                        model
+
+                    right :: rest ->
+                        let
+                            newRightList =
+                                getFocus model :: getRightList model
+
+                            newFocus =
+                                right
+
+                            newLeftList =
+                                rest
+                        in
+                        model
+                            |> setRightList newRightList
+                            |> setFocus newFocus
+                            |> setLeftList newLeftList
+
         focusRight =
             \model ->
                 case getRightList model of
@@ -151,27 +175,19 @@ create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocu
                             |> setFocus newFocus
                             |> setLeftList newLeftList
 
-        focusLeft =
-            \model ->
-                case getLeftList model of
-                    [] ->
-                        model
+        focusLeftWhile predicate model =
+            if predicate (getFocus model) && not (isLeftEnd model) then
+                focusLeftWhile predicate (focusLeft model)
 
-                    right :: rest ->
-                        let
-                            newRightList =
-                                getFocus model :: getRightList model
+            else
+                model
 
-                            newFocus =
-                                right
+        focusRightWhile predicate model =
+            if predicate (getFocus model) && not (isRightEnd model) then
+                focusRightWhile predicate (focusRight model)
 
-                            newLeftList =
-                                rest
-                        in
-                        model
-                            |> setRightList newRightList
-                            |> setFocus newFocus
-                            |> setLeftList newLeftList
+            else
+                model
 
         focusRightEnd =
             \model ->
@@ -286,6 +302,8 @@ create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocu
     in
     { focusRight = focusRight
     , focusLeft = focusLeft
+    , focusLeftWhile = focusLeftWhile
+    , focusRightWhile = focusRightWhile
     , focusLeftEnd = focusLeftEnd
     , focusRightEnd = focusRightEnd
     , isLeftEnd = isLeftEnd
