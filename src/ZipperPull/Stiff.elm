@@ -42,8 +42,8 @@ type Err g
 type alias Interface g stock model output =
     { focusLeft : model -> Result (Err g) model
     , focusRight : model -> Result (Err g) model
-    , focusLeftWhile : (stock -> Bool) -> model -> Result (Err g) model
-    , focusRightWhile : (stock -> Bool) -> model -> Result (Err g) model
+    , focusLeftWhile : (model -> Bool) -> model -> Result (Err g) model
+    , focusRightWhile : (model -> Bool) -> model -> Result (Err g) model
     , focusLeftEnd : model -> Result (Err g) model
     , focusRightEnd : model -> Result (Err g) model
     , isLeftEnd : model -> Bool
@@ -110,38 +110,28 @@ create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocu
                                     |> Ok
 
         focusLeftWhile predicate model =
-            case getFocus model of
-                Err e ->
-                    Err (FailedToGetFocus e)
+            if predicate model then
+                case focusLeft model of
+                    Err e ->
+                        Err e
 
-                Ok oldFocus ->
-                    if predicate oldFocus then
-                        case focusLeft model of
-                            Err e ->
-                                Err e
+                    Ok newModel ->
+                        focusLeftWhile predicate newModel
 
-                            Ok newModel ->
-                                focusLeftWhile predicate newModel
-
-                    else
-                        Ok model
+            else
+                Ok model
 
         focusRightWhile predicate model =
-            case getFocus model of
-                Err e ->
-                    Err (FailedToGetFocus e)
+            if predicate model then
+                case focusRight model of
+                    Err e ->
+                        Err e
 
-                Ok oldFocus ->
-                    if predicate oldFocus then
-                        case focusRight model of
-                            Err e ->
-                                Err e
+                    Ok newModel ->
+                        focusRightWhile predicate newModel
 
-                            Ok newModel ->
-                                focusRightWhile predicate newModel
-
-                    else
-                        Ok model
+            else
+                Ok model
 
         focusLeftEnd =
             \model ->

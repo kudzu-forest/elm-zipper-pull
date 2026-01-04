@@ -30,8 +30,8 @@ If you have any inconvinience, please tell me or make a pull request.
 type alias Interface stock model output =
     { focusLeft : model -> model
     , focusRight : model -> model
-    , focusLeftWhile : (stock -> Bool) -> model -> model
-    , focusRightWhile : (stock -> Bool) -> model -> model
+    , focusLeftWhile : (model -> Bool) -> model -> model
+    , focusRightWhile : (model -> Bool) -> model -> model
     , focusLeftEnd : model -> model
     , focusRightEnd : model -> model
     , isLeftEnd : model -> Bool
@@ -176,14 +176,14 @@ create { getRightList, getLeftList, getFocus, setRightList, setLeftList, setFocu
                             |> setLeftList newLeftList
 
         focusLeftWhile predicate model =
-            if predicate (getFocus model) && not (isLeftEnd model) then
+            if predicate model && not (isLeftEnd model) then
                 focusLeftWhile predicate (focusLeft model)
 
             else
                 model
 
         focusRightWhile predicate model =
-            if predicate (getFocus model) && not (isRightEnd model) then
+            if predicate model && not (isRightEnd model) then
                 focusRightWhile predicate (focusRight model)
 
             else
